@@ -3,9 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/url"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -26,6 +28,16 @@ type Products struct {
 }
 
 func main() {
+	products := []string{"Zjiang ZJ-5890T", "Sennheiser HD 202", "sepatu balerina hitam flat"}
+
+	realMain(os.Stdout, products)
+}
+
+type Writer interface {
+	Write(p []byte) (n int, err error)
+}
+
+func realMain(w io.Writer, products []string) {
 	escaped := regexp.QuoteMeta("tokopedia.com")
 	r := regexp.MustCompile(`^https?:\/\/[a-z]*\.?` + escaped + `.*`)
 	c := colly.NewCollector(
@@ -39,6 +51,7 @@ func main() {
 		e.ForEach("div.css-974ipl", func(i int, h *colly.HTMLElement) {
 			reg, err := regexp.Compile("[^0-9]+")
 			if err != nil {
+
 				log.Fatal(err)
 			}
 			processedString := reg.ReplaceAllString(e.ChildText("div.css-1ksb19c"), "")
@@ -62,7 +75,7 @@ func main() {
 	})
 
 	c.OnRequest(func(r *colly.Request) {
-		fmt.Println("Visiting", r.URL)
+		// fmt.Println("Visiting", r.URL)
 	})
 
 	c.OnResponse(func(r *colly.Response) {
@@ -70,11 +83,12 @@ func main() {
 	})
 
 	c.OnError(func(r *colly.Response, e error) {
-		fmt.Println("Got this error:", e)
+		// fmt.Println("Got this error:", e)
 	})
 
 	c.OnScraped(func(r *colly.Response) {
-		fmt.Println("Finished", r.Request.URL)
+		// fmt.Println("Finished", r.Request.URL)
+		fmt.Fprintf(w, "Finished %s", r.Request.URL)
 		file, err := json.MarshalIndent(shops, "", " ")
 		if err != nil {
 			log.Println("Unable to create json file")
@@ -86,10 +100,8 @@ func main() {
 		}
 	})
 
-	products := []string{"Zjiang ZJ-5890T", "Sennheiser HD 202", "sepatu balerina hitam flat"}
 	for i := 0; i < len(products); i++ {
 		link := fmt.Sprintf("https://www.tokopedia.com/search?st=product&q=%s", url.QueryEscape(products[i]))
 		c.Visit(link)
 	}
-
 }
